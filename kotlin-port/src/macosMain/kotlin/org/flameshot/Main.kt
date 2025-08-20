@@ -6,7 +6,32 @@ package org.flameshot
 import org.flameshot.core.CaptureRequest
 import org.flameshot.core.Flameshot
 import kotlinx.cinterop.*
-import kotlinx.cli.*
+
+/**
+ * Simple argument parser for basic CLI functionality
+ */
+class SimpleArgsParser(private val args: Array<String>) {
+    private var index = 0
+    
+    fun hasNext(): Boolean = index < args.size
+    
+    fun next(): String = args[index++]
+    
+    fun peek(): String? = if (hasNext()) args[index] else null
+    
+    fun hasOption(option: String): Boolean = args.contains(option)
+    
+    fun getOptionValue(option: String): String? {
+        val optionIndex = args.indexOf(option)
+        return if (optionIndex != -1 && optionIndex + 1 < args.size) {
+            args[optionIndex + 1]
+        } else null
+    }
+    
+    fun getIntOptionValue(option: String, default: Int = 0): Int {
+        return getOptionValue(option)?.toIntOrNull() ?: default
+    }
+}
 
 /**
  * Main entry point for Flameshot Kotlin/Native on macOS
@@ -14,80 +39,45 @@ import kotlinx.cli.*
 fun main(args: Array<String>) {
     println("Flameshot Kotlin - macOS Port v13.1.0")
     
-    val parser = ArgParser("flameshot-kotlin")
+    val parser = SimpleArgsParser(args)
     
-    val gui by parser.option(ArgType.Boolean, shortName = "g", description = "Capture GUI mode").default(false)
-    val fullscreen by parser.option(ArgType.Boolean, shortName = "f", description = "Capture fullscreen").default(false)
-    val screen by parser.option(ArgType.Int, shortName = "s", description = "Capture specific screen number")
-    val delay by parser.option(ArgType.Int, shortName = "d", description = "Delay in seconds before capture").default(0)
-    val save by parser.option(ArgType.String, shortName = "p", description = "Save path for screenshot")
-    val copy by parser.option(ArgType.Boolean, shortName = "c", description = "Copy to clipboard").default(false)
-    val config by parser.option(ArgType.Boolean, description = "Open configuration").default(false)
-    val launcher by parser.option(ArgType.Boolean, description = "Open launcher").default(false)
-    val version by parser.option(ArgType.Boolean, shortName = "v", description = "Show version").default(false)
-    
-    try {
-        parser.parse(args)
-    } catch (e: Exception) {
-        println("Error parsing arguments: ${e.message}")
+    // Check for help
+    if (parser.hasOption("--help") || parser.hasOption("-h")) {
+        showHelp()
         return
     }
     
     val flameshot = Flameshot.instance()
     
     when {
-        version -> {
+        parser.hasOption("--version") || parser.hasOption("-v") -> {
             println("Flameshot Kotlin version: ${flameshot.getVersion()}")
             return
         }
         
-        config -> {
+        parser.hasOption("--config") -> {
             flameshot.config()
             return
         }
         
-        launcher -> {
+        parser.hasOption("--launcher") -> {
             flameshot.launcher()
             return
         }
         
-        fullscreen -> {
-            var request = CaptureRequest.FULLSCREEN_MODE.copy(delay = delay.toUInt())
-            
-            if (!save.isNullOrEmpty()) {
-                request = request.addSaveTask(save)
-            }
-            if (copy) {
-                request = request.addTask(CaptureRequest.ExportTask.COPY)
-            }
-            
-            flameshot.full(request)
+        parser.hasOption("--fullscreen") || parser.hasOption("-f") -> {
+            handleCaptureMode(CaptureRequest.FULLSCREEN_MODE, parser, flameshot)
         }
         
-        screen != null -> {
-            var request = CaptureRequest.SCREEN_MODE.copy(delay = delay.toUInt())
-            
-            if (!save.isNullOrEmpty()) {
-                request = request.addSaveTask(save)
-            }
-            if (copy) {
-                request = request.addTask(CaptureRequest.ExportTask.COPY)
-            }
-            
-            flameshot.screen(request, screen)
+        parser.hasOption("--screen") || parser.hasOption("-s") -> {
+            val screenNumber = parser.getIntOptionValue("-s") ?: parser.getIntOptionValue("--screen") ?: 0
+            var request = CaptureRequest.SCREEN_MODE
+            request = applyCommonOptions(request, parser)
+            flameshot.screen(request, screenNumber)
         }
         
-        gui -> {
-            var request = CaptureRequest.GRAPHICAL_MODE.copy(delay = delay.toUInt())
-            
-            if (!save.isNullOrEmpty()) {
-                request = request.addSaveTask(save)
-            }
-            if (copy) {
-                request = request.addTask(CaptureRequest.ExportTask.COPY)
-            }
-            
-            flameshot.gui(request)
+        parser.hasOption("--gui") || parser.hasOption("-g") -> {
+            handleCaptureMode(CaptureRequest.GRAPHICAL_MODE, parser, flameshot)
         }
         
         else -> {
@@ -109,4 +99,64 @@ fun main(args: Array<String>) {
     } catch (e: InterruptedException) {
         println("Application interrupted, exiting...")
     }
+}
+
+private fun handleCaptureMode(baseRequest: CaptureRequest, parser: SimpleArgsParser, flameshot: Flameshot) {
+    var request = applyCommonOptions(baseRequest, parser)
+    
+    when (baseRequest.mode) {
+        CaptureRequest.CaptureMode.FULLSCREEN_MODE -> flameshot.full(request)
+        CaptureRequest.CaptureMode.GRAPHICAL_MODE -> flameshot.gui(request)
+        CaptureRequest.CaptureMode.SCREEN_MODE -> flameshot.screen(request, 0)
+    }
+}
+
+private fun applyCommonOptions(request: CaptureRequest, parser: SimpleArgsParser): CaptureRequest {
+    var result = request
+    
+    // Apply delay
+    val delay = parser.getIntOptionValue("--delay") ?: parser.getIntOptionValue("-d")
+    if (delay != null) {
+        result = result.copy(delay = delay.toUInt())
+    }
+    
+    // Apply save path
+    val savePath = parser.getOptionValue("--path") ?: parser.getOptionValue("-p")
+    if (savePath != null) {
+        result = result.addSaveTask(savePath)
+    }
+    
+    // Apply copy to clipboard
+    if (parser.hasOption("--copy") || parser.hasOption("-c")) {
+        result = result.addTask(CaptureRequest.ExportTask.COPY)
+    }
+    
+    return result
+}
+
+private fun showHelp() {
+    println("""
+        Flameshot Kotlin - Screenshot Tool
+        
+        USAGE:
+            flameshot-kotlin [OPTIONS]
+            
+        OPTIONS:
+            -g, --gui              Capture in GUI mode (default)
+            -f, --fullscreen       Capture fullscreen
+            -s, --screen <number>  Capture specific screen number
+            -d, --delay <seconds>  Delay before capture
+            -p, --path <path>      Save path for screenshot
+            -c, --copy             Copy screenshot to clipboard
+            --config               Open configuration
+            --launcher             Open launcher  
+            -v, --version          Show version
+            -h, --help             Show this help
+            
+        EXAMPLES:
+            flameshot-kotlin -g                    # GUI capture mode
+            flameshot-kotlin -f -c                # Fullscreen, copy to clipboard  
+            flameshot-kotlin -s 0 -p ~/shot.png   # Capture screen 0, save to file
+            flameshot-kotlin -f -d 3              # Fullscreen with 3s delay
+    """.trimIndent())
 }
