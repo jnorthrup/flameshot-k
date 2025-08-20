@@ -79,6 +79,7 @@ option(USE_LAUNCHER_ABSOLUTE_PATH "Use absolute path for the desktop launcher" O
 option(USE_WAYLAND_CLIPBOARD "USE KF Gui Wayland Clipboard" OFF)
 option(DISABLE_UPDATE_CHECKER "Disable check for updates" OFF)
 option(ENABLE_IMGUR "Enable Imgur Uploader" OFF)
+option(ENABLE_KOTLIN_PORT "Enable Kotlin/Native port alongside C++ version" OFF)
 
 if (ENABLE_IMGUR)
   add_compile_definitions(ENABLE_IMGUR)
@@ -142,6 +143,11 @@ if (APPLE)
 endif()
 
 add_subdirectory(src)
+
+# Add Kotlin port if enabled
+if(ENABLE_KOTLIN_PORT)
+    add_subdirectory(kotlin-port)
+endif()
 
 # CPack
 set(CPACK_PACKAGE_VENDOR "flameshot-org")

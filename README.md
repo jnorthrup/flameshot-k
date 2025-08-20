@@ -408,6 +408,34 @@ To build the application in your system, you'll need to install the dependencies
 
 This project uses [CMake](https://cmake.org/) build system, so you need to install it in order to build the project (on most Linux distributions it is available in the standard repositories as a package called `cmake`). If your distribution provides too old version of CMake (e.g. Ubuntu or Debian) you can [download it on the official website](https://cmake.org/download/).
 
+### Kotlin Port
+
+This repository also includes an experimental **Kotlin Multiplatform** port of Flameshot with initial macOS support. The Kotlin port provides:
+
+- Platform-agnostic core logic written in Kotlin Common
+- Native macOS integration using Kotlin/Native
+- Type-safe configuration management
+- Modern coroutines-based architecture
+
+To build the Kotlin port:
+
+```bash
+cd kotlin-port
+
+# Using the build script (macOS only)
+./build.sh
+
+# Or using Gradle (cross-platform)
+./gradlew macosX64Binaries  # for Intel Macs
+./gradlew macosArm64Binaries # for Apple Silicon Macs
+
+# Or integrated with main CMake build
+cmake -DENABLE_KOTLIN_PORT=ON ..
+make flameshot-kotlin
+```
+
+The Kotlin port is located in the `kotlin-port/` directory. See [`kotlin-port/README.md`](kotlin-port/README.md) for detailed documentation.
+
 Also you can open and build/debug the project in a C++ IDE. For example, in Qt Creator you should be able to simply open `CMakeLists.txt` via `Open File or Project` in the menu after installing CMake into your system. [More information about CMake projects in Qt Creator](https://doc.qt.io/qtcreator/creator-project-cmake.html).
 
 ### Dependencies
