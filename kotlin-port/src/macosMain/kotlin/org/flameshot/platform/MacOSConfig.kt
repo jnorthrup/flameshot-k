@@ -4,7 +4,6 @@
 package org.flameshot.platform
 
 import org.flameshot.config.*
-import kotlinx.cinterop.*
 import platform.Foundation.*
 
 /**
