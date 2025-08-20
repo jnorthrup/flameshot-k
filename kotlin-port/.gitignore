@@ -1,0 +1,15 @@
+# Kotlin/Native build artifacts
+build/
+.gradle/
+*.kexe
+*.klib
+
+# IDE
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
