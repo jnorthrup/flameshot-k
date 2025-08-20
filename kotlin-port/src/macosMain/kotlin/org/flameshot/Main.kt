@@ -5,7 +5,6 @@ package org.flameshot
 
 import org.flameshot.core.CaptureRequest
 import org.flameshot.core.Flameshot
-import kotlinx.cinterop.*
 
 /**
  * Simple argument parser for basic CLI functionality
