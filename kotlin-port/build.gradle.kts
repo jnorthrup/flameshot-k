@@ -36,8 +36,15 @@ kotlin {
         }
     }
     // macOS Kotlin/Native targets for Apple Silicon and Intel macOS
-    macosArm64("macosArm64")
-    macosX64("macosX64")
+    // Make native targets opt-in so local JVM-only TDD builds don't fail on machines
+    // without proper native toolchains. Set BUILD_MACOS_NATIVE=true to enable.
+    val enableMacosNative = (System.getenv("BUILD_MACOS_NATIVE") ?: "false").toBoolean()
+    if (enableMacosNative) {
+        macosArm64("macosArm64")
+        macosX64("macosX64")
+    } else {
+        println("[kotlin-port] Skipping macOS native targets (BUILD_MACOS_NATIVE not set)")
+    }
 
     sourceSets {
         val commonMain by getting {
@@ -57,17 +64,19 @@ kotlin {
             }
         }
 
-        // macOS native source set (shared by both arm64 and x64 targets)
-        val macosMain by creating {
-            dependsOn(commonMain)
-            dependencies {
-                // native-specific dependencies can be added here later
+        if (enableMacosNative) {
+            // macOS native source set (shared by both arm64 and x64 targets)
+            val macosMain by creating {
+                dependsOn(commonMain)
+                dependencies {
+                    // native-specific dependencies can be added here later
+                }
             }
-        }
 
-        // wire macos target source sets to the created macosMain
-        val macosArm64Main by getting { dependsOn(macosMain) }
-        val macosX64Main by getting { dependsOn(macosMain) }
+            // wire macos target source sets to the created macosMain
+            val macosArm64Main by getting { dependsOn(macosMain) }
+            val macosX64Main by getting { dependsOn(macosMain) }
+        }
 
         val commonTest by getting {
             dependencies {

@@ -1,15 +1,21 @@
 package com.flameshot.kotlinport.ui
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 
 @Composable
 fun CaptureWidget(
     modifier: Modifier = Modifier,
-    onCaptureDone: (/* TODO: Screenshot type */ Any, /* TODO: Rect type */ Any) -> Unit = { _, _ -> },
+    onCaptureDone: (screenshot: ImageBitmap, rect: Rect) -> Unit = { _, _ -> },
     onCancelled: () -> Unit = {}
 ) {
     var selection by remember { mutableStateOf(Rectangle()) }
@@ -20,13 +26,61 @@ fun CaptureWidget(
     var drawColor by remember { mutableStateOf(androidx.compose.ui.graphics.Color.Red) }
     var strokeWidth by remember { mutableStateOf(5f) }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    // Track a drag start offset for selection
+    var dragStart by remember { mutableStateOf<Offset?>(null) }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        isSelecting = true
+                        dragStart = offset
+                        selection.left = offset.x
+                        selection.top = offset.y
+                        selection.right = offset.x
+                        selection.bottom = offset.y
+                    },
+                    onDrag = { change, _ ->
+                        val pos = change.position
+                        selection.right = pos.x
+                        selection.bottom = pos.y
+                    },
+                    onDragEnd = {
+                        isSelecting = false
+                        dragStart = null
+                        // In this minimal implementation we can't create a real screenshot.
+                        // Provide a tiny placeholder ImageBitmap and the selected rect to the callback.
+                        val placeholder = ImageBitmap(1, 1)
+                        val rect = Rect(selection.left, selection.top, selection.right, selection.bottom)
+                        onCaptureDone(placeholder, rect)
+                    },
+                    onDragCancel = {
+                        isSelecting = false
+                        dragStart = null
+                    }
+                )
+            }
+    ) {
         // Placeholder for ScreenshotCanvas
         DrawingCanvas(
             toolObjects = toolObjects,
             currentPath = null,
             modifier = Modifier.fillMaxSize()
         )
+
+        // Visual selection overlay while selecting
+        if (isSelecting) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawRect(
+                    color = androidx.compose.ui.graphics.Color.Transparent,
+                    topLeft = Offset(selection.left, selection.top),
+                    size = androidx.compose.ui.geometry.Size(selection.width, selection.height),
+                    style = Stroke(width = strokeWidth)
+                )
+            }
+        }
 
         // Tool panel stub
         ToolPanel(
@@ -40,12 +94,7 @@ fun CaptureWidget(
     }
 }
 
-// Minimal placeholder types to keep this compile-safe until full models are implemented
-class Rectangle(var left: Float = 0f, var top: Float = 0f, var right: Float = 0f, var bottom: Float = 0f) {
-    val width: Float get() = right - left
-    val height: Float get() = bottom - top
-    fun bottomRight(): Offset = Offset(right, bottom)
-}
+// ...existing code...
 
 sealed class CaptureTool {
     object Pencil : CaptureTool()
