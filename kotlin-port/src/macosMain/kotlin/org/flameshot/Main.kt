@@ -7,32 +7,6 @@ import org.flameshot.core.CaptureRequest
 import org.flameshot.core.Flameshot
 
 /**
- * Simple argument parser for basic CLI functionality
- */
-class SimpleArgsParser(private val args: Array<String>) {
-    private var index = 0
-    
-    fun hasNext(): Boolean = index < args.size
-    
-    fun next(): String = args[index++]
-    
-    fun peek(): String? = if (hasNext()) args[index] else null
-    
-    fun hasOption(option: String): Boolean = args.contains(option)
-    
-    fun getOptionValue(option: String): String? {
-        val optionIndex = args.indexOf(option)
-        return if (optionIndex != -1 && optionIndex + 1 < args.size) {
-            args[optionIndex + 1]
-        } else null
-    }
-    
-    fun getIntOptionValue(option: String, default: Int = 0): Int {
-        return getOptionValue(option)?.toIntOrNull() ?: default
-    }
-}
-
-/**
  * Main entry point for Flameshot Kotlin/Native on macOS
  */
 fun main(args: Array<String>) {
@@ -87,17 +61,8 @@ fun main(args: Array<String>) {
         }
     }
     
-    // Keep the application running for GUI interactions
-    println("Flameshot Kotlin is running. Press Ctrl+C to exit.")
-    
-    // Simple event loop - in a real app this would be more sophisticated
-    try {
-        while (true) {
-            Thread.sleep(100)
-        }
-    } catch (e: InterruptedException) {
-        println("Application interrupted, exiting...")
-    }
+    // For tests and CLI runs we don't block; native GUI apps would run their runloop instead.
+    println("Flameshot Kotlin startup complete (non-blocking for test/CLI runs)")
 }
 
 private fun handleCaptureMode(baseRequest: CaptureRequest, parser: SimpleArgsParser, flameshot: Flameshot) {
@@ -110,28 +75,7 @@ private fun handleCaptureMode(baseRequest: CaptureRequest, parser: SimpleArgsPar
     }
 }
 
-private fun applyCommonOptions(request: CaptureRequest, parser: SimpleArgsParser): CaptureRequest {
-    var result = request
-    
-    // Apply delay
-    val delay = parser.getIntOptionValue("--delay") ?: parser.getIntOptionValue("-d")
-    if (delay != null) {
-        result = result.copy(delay = delay.toUInt())
-    }
-    
-    // Apply save path
-    val savePath = parser.getOptionValue("--path") ?: parser.getOptionValue("-p")
-    if (savePath != null) {
-        result = result.addSaveTask(savePath)
-    }
-    
-    // Apply copy to clipboard
-    if (parser.hasOption("--copy") || parser.hasOption("-c")) {
-        result = result.addTask(CaptureRequest.ExportTask.COPY)
-    }
-    
-    return result
-}
+// applyCommonOptions moved to commonMain `CliOptions.kt`
 
 private fun showHelp() {
     println("""

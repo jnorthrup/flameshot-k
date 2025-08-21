@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 /**
  * Main Flameshot application class - Kotlin common implementation
  */
-class Flameshot private constructor() {
+open class Flameshot constructor() {
     
     enum class Origin {
         CLI,
@@ -136,15 +136,17 @@ class Flameshot private constructor() {
     protected open fun platformResolveConfigErrors(): Boolean = true
 
     companion object {
-        @Volatile
         private var INSTANCE: Flameshot? = null
-        
+
         private var _origin: Origin = Origin.DAEMON
 
         fun instance(): Flameshot {
-            return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: createInstance().also { INSTANCE = it }
+            // Kotlin/Native targets used in tests are single-threaded by default here.
+            // Use simple lazy initialization to avoid JVM-only concurrency primitives.
+            if (INSTANCE == null) {
+                INSTANCE = createInstance()
             }
+            return INSTANCE!!
         }
 
         private fun createInstance(): Flameshot {
@@ -167,7 +169,7 @@ expect fun platformCreateInstance(): Flameshot
 /**
  * Screenshot data class - platform implementations will provide native image types
  */
-expect class Screenshot {
+expect class Screenshot(imageData: ByteArray) {
     fun save(path: String): Boolean
     fun copyToClipboard()
 }

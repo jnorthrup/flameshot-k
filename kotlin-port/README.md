@@ -13,12 +13,13 @@ The Kotlin port follows a clean architecture approach:
 
 - **`src/macosMain/kotlin/`** - macOS-specific implementations
   - Native screenshot capture using CoreGraphics APIs
-  - NSUserDefaults for configuration persistence 
+  - NSUserDefaults for configuration persistence
   - macOS-specific UI and system integration
 
 ## Features Implemented
 
 ### Core Functionality
+
 - ✅ Basic screenshot capture request handling
 - ✅ Configuration management with JSON serialization
 - ✅ Command-line interface with kotlinx-cli
@@ -26,6 +27,7 @@ The Kotlin port follows a clean architecture approach:
 - ✅ Export tasks: save to file, copy to clipboard
 
 ### macOS Platform Support
+
 - ✅ macOS-specific Flameshot implementation
 - ✅ NSUserDefaults configuration persistence
 - ✅ NSPasteboard clipboard integration
@@ -36,10 +38,12 @@ The Kotlin port follows a clean architecture approach:
 ## Building
 
 ### Prerequisites
+
 - Kotlin/Native toolchain (included with Kotlin 1.9.20+)
 - macOS 10.15+ (for macOS targets)
 
 ### Build Commands
+
 ```bash
 cd kotlin-port
 
@@ -83,12 +87,14 @@ The Kotlin port supports the same command-line interface as the original:
 ## Project Status
 
 This is a **proof-of-concept** port demonstrating:
+
 1. How Flameshot's core functionality can be implemented in Kotlin Common
 2. Platform-specific macOS integration using Kotlin/Native
 3. Modern, type-safe configuration management
 4. Clean separation of concerns between common and platform code
 
 ### Next Steps
+
 1. Complete CoreGraphics screenshot capture implementation
 2. Add native macOS UI components (NSWindow, NSView)
 3. Implement global hotkey support

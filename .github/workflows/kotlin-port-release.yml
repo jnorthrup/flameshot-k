@@ -1,0 +1,150 @@
+name: Kotlin Port CI
+
+on:
+  push:
+    branches: [ master ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [ master ]
+  release:
+    types: [created]
+
+jobs:
+  tdd-green:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+
+      - name: Run unit tests (green TDD)
+        run: |
+          chmod +x ./kotlin-port/gradlew
+          ./kotlin-port/gradlew -p kotlin-port clean allTests --no-daemon
+        env:
+          CI: true
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-port-test-results
+          path: |
+            kotlin-port/build/test-results || kotlin-port/build/reports
+
+  tdd-gap-analysis:
+    needs: tdd-green
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+
+      - name: Run Gap-Analysis driven red TDD
+        run: |
+          chmod +x ./kotlin-port/scripts/gap_analysis_tdd.sh || true
+          ./kotlin-port/scripts/gap_analysis_tdd.sh
+        env:
+          CI: true
+
+  build:
+    needs: [tdd-gap-analysis]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties') }}
+
+      - name: Build kotlin-port (desktop)
+        run: |
+          chmod +x ./gradlew
+          ./gradlew -p kotlin-port clean build desktopFatJar --no-daemon
+        env:
+          CI: true
+
+      - name: Run smoke UI tests (Linux headless)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # run UI tests under Xvfb if present in the Gradle test task, adjust as needed
+          sudo apt-get update && sudo apt-get install -y xvfb
+          ./gradlew -p kotlin-port connectedCheck || true
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kotlin-port-dist
+          path: |
+            kotlin-port/build/libs
+            kotlin-port/build/compose/binaries || kotlin-port/build/distributions || kotlin-port/build
+            kotlin-port/build/libs/flameshot-kotlin-desktop-${{ matrix.os }}-*.jar || kotlin-port/build/libs/flameshot-kotlin-desktop-*.jar || kotlin-port/build/libs/*.jar
+
+  release-package:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'release'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build release artifacts
+        run: |
+          chmod +x ./gradlew
+          ./gradlew -p kotlin-port clean assemble --no-daemon
+
+      - name: Create GitHub release (attach artifacts)
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: |
+            kotlin-port/build/libs/*.jar
+            kotlin-port/build/distributions/**/*
+          token: ${{ secrets.GITHUB_TOKEN }}

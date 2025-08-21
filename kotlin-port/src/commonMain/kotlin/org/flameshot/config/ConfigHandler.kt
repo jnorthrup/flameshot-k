@@ -40,6 +40,38 @@ object ConfigHandler {
         prettyPrint = true
         ignoreUnknownKeys = true
     }
+    // Toggle platform persistence for tests or environments where platform I/O
+    // should be avoided. Defaults to true in normal runtime.
+    private var persistenceEnabled: Boolean = true
+
+    /**
+     * Disable/enable platform persistence (useful for tests).
+     */
+    fun setPersistenceEnabled(enabled: Boolean) {
+        persistenceEnabled = enabled
+    }
+
+    // Pluggable platform handlers (default to expect/actual implementations).
+    // Tests can swap these to avoid touching real platform storage.
+    private var platformSaveHandler: (String) -> Unit = { config -> platformSaveConfig(config) }
+    private var platformLoadHandler: () -> String = { platformLoadConfig() }
+
+    /**
+     * Replace platform handlers (used by tests). Returns a lambda to restore previous handlers.
+     */
+    fun replacePlatformHandlers(
+        saveHandler: (String) -> Unit = platformSaveHandler,
+        loadHandler: () -> String = platformLoadHandler
+    ): () -> Unit {
+        val prevSave = platformSaveHandler
+        val prevLoad = platformLoadHandler
+        platformSaveHandler = saveHandler
+        platformLoadHandler = loadHandler
+        return {
+            platformSaveHandler = prevSave
+            platformLoadHandler = prevLoad
+        }
+    }
     
     fun getConfig(): FlameshotConfig = currentConfig
     
@@ -88,16 +120,35 @@ object ConfigHandler {
     
     private fun saveConfig() {
         // Platform-specific implementation will handle actual file I/O
-        platformSaveConfig(json.encodeToString(currentConfig))
+        if (persistenceEnabled) {
+            platformSaveHandler(json.encodeToString(currentConfig))
+        }
     }
     
     fun loadConfig() {
-        val configString = platformLoadConfig()
+    if (!persistenceEnabled) return
+    val configString = platformLoadHandler()
         if (configString.isNotEmpty()) {
             try {
                 currentConfig = json.decodeFromString(configString)
             } catch (e: Exception) {
                 println("Failed to load config: ${e.message}, using defaults")
+            }
+        }
+    }
+
+    // Helper for tests: serialize current config to JSON
+    fun toJson(): String {
+        return json.encodeToString(currentConfig)
+    }
+
+    // Helper for tests: load config from JSON string without touching platform storage
+    fun loadFromJson(jsonString: String) {
+        if (jsonString.isNotEmpty()) {
+            try {
+                currentConfig = json.decodeFromString(jsonString)
+            } catch (e: Exception) {
+                println("Failed to load config from string: ${e.message}")
             }
         }
     }

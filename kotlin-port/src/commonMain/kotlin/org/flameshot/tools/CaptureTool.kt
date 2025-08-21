@@ -1,0 +1,1 @@
+// Duplicate file intentionally left empty; canonical tool implementations live in CaptureTools.kt
