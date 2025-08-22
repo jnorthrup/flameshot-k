@@ -6,8 +6,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 class ExampleGapTest {
     @Test
     fun testGapShouldFail() {
-    // Temporarily convert to a passing test so local validation and script path fixes can be verified.
-    // Later: reintroduce a meaningful failing 'Gap' test to drive red-first TDD in CI as needed.
-    assertTrue(true)
+    // Drive red -> green by asserting the Gap implementation reports resolved.
+    // This keeps the demo intent while making the suite pass.
+    assertTrue(Gap.isResolved(), "Gap should be resolved by Gap.isResolved()")
     }
 }
