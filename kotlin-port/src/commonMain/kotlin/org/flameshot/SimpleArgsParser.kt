@@ -21,8 +21,14 @@ class SimpleArgsParser(private val args: Array<String>) {
     
     fun hasOption(option: String): Boolean {
         for (a in args) {
-            if (a == option) return true
-            if (a.startsWith(option + "=", ignoreCase = false)) return true
+            // If this is a long option (starts with "--"), match case-insensitively.
+            if (option.startsWith("--")) {
+                if (a.equals(option, ignoreCase = true)) return true
+                if (a.startsWith(option + "=", ignoreCase = true)) return true
+            } else {
+                if (a == option) return true
+                if (a.startsWith(option + "=", ignoreCase = false)) return true
+            }
             // support combined short flags like "-abc" matching "-a", "-b", "-c"
             if (option.length == 2 && option.startsWith("-") && a.startsWith("-") && !a.startsWith("--") ) {
                 // examine characters after the leading '-' up to an optional '='
@@ -38,12 +44,22 @@ class SimpleArgsParser(private val args: Array<String>) {
         // in the form "--opt value" or "--opt=value".
         for (i in args.indices) {
             val a = args[i]
-            if (a == option) {
-                return if (i + 1 < args.size) args[i + 1] else null
-            }
-            // support --opt=value and -o=value style
-            if (a.startsWith(option + "=", ignoreCase = false)) {
-                return a.substringAfter('=')
+            // Long options should match case-insensitively
+            if (option.startsWith("--")) {
+                if (a.equals(option, ignoreCase = true)) {
+                    return if (i + 1 < args.size) args[i + 1] else null
+                }
+                if (a.startsWith(option + "=", ignoreCase = true)) {
+                    return a.substringAfter('=')
+                }
+            } else {
+                if (a == option) {
+                    return if (i + 1 < args.size) args[i + 1] else null
+                }
+                // support --opt=value and -o=value style (case-sensitive for short options)
+                if (a.startsWith(option + "=", ignoreCase = false)) {
+                    return a.substringAfter('=')
+                }
             }
             // support short-option attached values like "-ovalue"
             if (option.length == 2 && option.startsWith("-") && a.startsWith(option) && !a.startsWith("--")) {
