@@ -1,0 +1,30 @@
+name: Gap Analysis TDD
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  gap-analysis:
+    name: Run gap-analysis TDD
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Make gap script executable
+        run: chmod +x kotlin-port/scripts/gap_analysis_tdd.sh
+
+      - name: Run gap-analysis TDD script
+        run: bash kotlin-port/scripts/gap_analysis_tdd.sh
+        # We intentionally let the script exit non-zero when there are 0 failing 'Gap' tests
+        # to enforce red-first TDD. Maintainers can set SKIP_GAP_ENFORCE in workflows if they
+        # want to bypass enforcement for a particular run.
